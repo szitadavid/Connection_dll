@@ -3,12 +3,14 @@ using System.Collections.Generic;
 using System.IO.Ports;
 using System.Linq;
 using System.Text;
+using System.Threading;
 
 namespace Ventilator_Connection
 {
     abstract public class Connection
     {
         public delegate void DataReceivedHandler(string msg);
+        public delegate void ConnectionStartedDelegate(bool status);
 
         protected string connectionState;
 
@@ -25,6 +27,13 @@ namespace Ventilator_Connection
     public class BluetoothConnection : Connection
     {
         private SerialPort port;
+
+        public delegate void ConnectionEndedDelegate(bool status);
+        /// <summary>
+        /// This event is set, when the connection phase ended. The argument shows the result of the connection.
+        /// This event is set from a new thread!
+        /// </summary>
+        public event ConnectionEndedDelegate ConnectionUp;
 
         public string Portname
         {
@@ -49,6 +58,7 @@ namespace Ventilator_Connection
             this.Portname = portname;
         }
 
+        #region Bluetoothconnection
         ///<summary>
         /// Tries to connect to the device, and sets the ConnectionState property:
         /// <para>Connection OK: "ConnectionUp"</para>
@@ -56,11 +66,19 @@ namespace Ventilator_Connection
         ///</summary>
         public override void Connect()
         {
+            Thread connectThread = new Thread(ConnectThread);
+            connectThread.Name = "connectThread";
+            connectThread.Start();
+        }
+
+        private void ConnectThread()
+        {
             port.BaudRate = 115200;
             port.DataBits = Convert.ToInt16(8);
             port.StopBits = StopBits.One;
             port.Handshake = Handshake.None;
             port.Parity = Parity.None;
+
             try
             {
                 port.DataReceived += new SerialDataReceivedEventHandler(port_DataReceived);
@@ -68,13 +86,19 @@ namespace Ventilator_Connection
                 if (port.IsOpen)
                 {
                     connectionState = "ConnectionUp";
+
+                    ConnectionUp(true);
                 }
             }
             catch (Exception ex)
             {
                 connectionState = ex.Message;
+                ConnectionUp(false);
             }
+
+
         }
+        #endregion
 
         public override void Close()
         {
