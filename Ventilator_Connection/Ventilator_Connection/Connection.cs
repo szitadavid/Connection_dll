@@ -10,7 +10,6 @@ namespace Ventilator_Connection
     abstract public class Connection
     {
         public delegate void DataReceivedHandler(string msg);
-        public delegate void ConnectionStartedDelegate(bool status);
 
         protected string connectionState;
 
@@ -27,13 +26,6 @@ namespace Ventilator_Connection
     public class BluetoothConnection : Connection
     {
         private SerialPort port;
-
-        public delegate void ConnectionEndedDelegate(bool status);
-        /// <summary>
-        /// This event is set, when the connection phase ended. The argument shows the result of the connection.
-        /// This event is set from a new thread!
-        /// </summary>
-        public event ConnectionEndedDelegate ConnectionUp;
 
         public string Portname
         {
@@ -66,13 +58,6 @@ namespace Ventilator_Connection
         ///</summary>
         public override void Connect()
         {
-            Thread connectThread = new Thread(ConnectThread);
-            connectThread.Name = "connectThread";
-            connectThread.Start();
-        }
-
-        private void ConnectThread()
-        {
             port.BaudRate = 115200;
             port.DataBits = Convert.ToInt16(8);
             port.StopBits = StopBits.One;
@@ -86,17 +71,13 @@ namespace Ventilator_Connection
                 if (port.IsOpen)
                 {
                     connectionState = "ConnectionUp";
-
-                    ConnectionUp(true);
+                    Send("CHB\n");
                 }
             }
             catch (Exception ex)
             {
                 connectionState = ex.Message;
-                ConnectionUp(false);
             }
-
-
         }
         #endregion
 
